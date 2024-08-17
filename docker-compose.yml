@@ -3,10 +3,9 @@ services:
         frontend:
                 build: .
                 command: serve -s ./build -p 3000
+                working_dir: "/usr/src/app"
                 volumes:
-                        - /usr/app/
-                        - /usr/app/node_modules
-                        - /usr/app/build
+                        - ./:/usr/src/app
                 ports:
                         - "3000:3000"
                 environment:

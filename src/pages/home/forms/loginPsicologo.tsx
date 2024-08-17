@@ -11,10 +11,7 @@ interface PsicologoState {
   senha: string;
 }
 
-export default class LoginPsicologo extends React.Component<
-  any,
-  PsicologoState
-> {
+export default class LoginPsicologo extends React.Component<any, PsicologoState> {
   constructor(props: any) {
     super(props);
 
@@ -32,28 +29,32 @@ export default class LoginPsicologo extends React.Component<
 
   async submitForm(event: any) {
     event.preventDefault();
-    const auth_service = new PsicologoService();
-    const data_to_send = {
-      email: this.state.email,
-      senha: this.state.senha,
-    };
+
     try {
+      const auth_service = new PsicologoService();
+      const data_to_send = {
+        email: this.state.email,
+        senha: this.state.senha,
+      };
+
       const response: any = await auth_service.login(data_to_send);
-      console.log(response);
-      if (response.auth) {
-        toast.success("Usuário logado com sucesso!");
-        const url = window.location.href;
-        const path = url.split("/")[0];
-        const cookies_provider = new CookiesProvider();
-        cookies_provider.saveUserData(response);
-        setInterval(() => {
-          window.location.href = `${path}/home`;
-        }, 1000);
-      } else {
-        toast.error(response.message);
+      if (!response || !response.auth) {
+        throw new Error(response.message);
       }
-    } catch (error) {
-      toast.error("Erro no login, tente mais tarde!");
+
+      const cookies_provider = new CookiesProvider();
+      cookies_provider.saveUserData(response);
+
+      const url = window.location.href;
+      const path = url.split("/")[0];
+
+      setInterval(() => {
+        window.location.href = `${path}/home`;
+      }, 1000);
+
+      toast.success("Usuário logado com sucesso!");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro no login, tente mais tarde!");
     }
   }
 
@@ -96,13 +97,13 @@ export default class LoginPsicologo extends React.Component<
           </button>
         </div>
         <div className="flex justify-around col-span-2 gap-2 mt-3">
-            <Link
-              to="/cadastro"
-              className="bg-blue-500 text-white hover:bg-blue-600 hover:shadow-xl w-28 h-8 rounded  font-light text-center pt-1"
-            >
-              Cadastrar
-            </Link>
-          
+          <Link
+            to="/cadastro"
+            className="bg-blue-500 text-white hover:bg-blue-600 hover:shadow-xl w-28 h-8 rounded  font-light text-center pt-1"
+          >
+            Cadastrar
+          </Link>
+
           <Link
             to="/recuperar-senha/digitar-email"
             className="font-light text-right col-span-2"

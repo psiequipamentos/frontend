@@ -36,12 +36,11 @@ export default class AddPsicologo extends React.Component<any, PsicologoState> {
     this.submitForm = this.submitForm.bind(this);
   }
 
-  handleChange = (event: any) =>
-    this.setState({ [event.target.name]: event.target.value } as any);
+  handleChange = (event: any) => this.setState({ [event.target.name]: event.target.value } as any);
 
   async submitForm(event: any) {
     event.preventDefault();
-    const psicologo_service: any = new PsicologoService();
+
     const data_to_send = {
       email: this.state.email,
       nome: `${this.state.nome} ${this.state.sobrenome}`,
@@ -49,33 +48,41 @@ export default class AddPsicologo extends React.Component<any, PsicologoState> {
       confsenha: this.state.confirmarSenha,
       senha: this.state.senha,
     };
+
     try {
-      if (data_to_send.senha === data_to_send.confsenha) {
-        const create_psicologo = await psicologo_service.create(data_to_send);
-        if (!create_psicologo.error) {
-          const email_service = new MailerService();
-          const link_verificar = `http://${window.location.host}/verificar-email/${create_psicologo.new_data.id}`;
-          const send_mail = await email_service.sendVerificationEmail({
-            to: this.state.email,
-            subject: "EMDR Remoto - Psi Equipamentos",
-            nome_psicologo: this.state.nome,
-            link: link_verificar,
-          });
-          console.log(send_mail);
-          const url = window.location.href;
-          const path = url.split("/")[0];
-          toast.success(
-            "Psicólogo cadastrado com sucesso! Um link de verificação foi enviado para o seu e-mail."
-          );
-          setInterval(() => {
-            window.location.href = `${path}/home`;
-          }, 1000);
-        }
-      } else {
+      if (data_to_send.senha !== data_to_send.confsenha) {
         toast.error("Senhas com caracteres diferentes");
-      }
-    } catch (error) {
-      toast.error("Erro ao cadastrar Psicólogo");
+        return;
+      };
+
+      const psicologo_service: any = new PsicologoService();
+      const create_psicologo = await psicologo_service.create(data_to_send);
+      if (!create_psicologo || create_psicologo.error) {
+        toast.error(create_psicologo?.message || "Erro ao cadastrar Psicólogo");
+        return;
+      };
+
+      const link_verificar = `http://${window.location.host}/verificar-email/${create_psicologo.new_data.id}`;
+      const email_service = new MailerService();
+      const send_mail = await email_service.sendVerificationEmail({
+        to: this.state.email,
+        subject: "EMDR Remoto - Psi Equipamentos",
+        nome_psicologo: this.state.nome,
+        link: link_verificar,
+      });
+
+      console.log(send_mail);
+      const url = window.location.href;
+      const path = url.split("/")[0];
+
+      const message = "Psicólogo cadastrado com sucesso! Um link de verificação foi enviado para o seu e-mail.";
+      toast.success(message);
+
+      setInterval(() => {
+        window.location.href = `${path}/home`;
+      }, 1000);
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao cadastrar Psicólogo");
     }
   }
 

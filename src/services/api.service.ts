@@ -17,7 +17,7 @@ export default class ApiService {
                     authorization: `Bearer ${token}`
                 },
                 url,
-                data
+                data,
             }).then((response) => resolve(response.data)).catch((err: any) => reject(err?.response?.data))
         )
     }
