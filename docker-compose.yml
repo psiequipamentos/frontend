@@ -2,10 +2,12 @@ version: '2'
 services:
         frontend:
                 build: .
-                command: serve -s ./build -p 3000
+                command: npm run start
                 working_dir: "/usr/src/app"
                 volumes:
                         - ./:/usr/src/app
+                        - /usr/src/app/build
+                        - /usr/src/app/node_modules
                 ports:
                         - "3000:3000"
                 environment:
