@@ -11,7 +11,7 @@ services:
                 ports:
                         - "3000:3000"
                 environment:
-                        - REACT_APP_API_URL=https://www.emdrremoto.com.br/emdr-api/
+                        - REACT_APP_API_URL=https://www.emdrremoto.com.br/emdr-api
                         - REACT_APP_CREATE_ROOM_URL=https://www.emdrremoto.com.br:8080/emdr-api/daily/new-room
                         - REACT_APP_WEBSOCKET_URL=https://www.emdrremoto.com.br/emdr-ws/
                         - REACT_APP_DAILY_CO_API=https://emdrremoto.daily.co

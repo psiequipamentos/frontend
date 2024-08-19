@@ -43,13 +43,18 @@ export default class LoginPsicologo extends React.Component<any, PsicologoState>
       }
 
       const cookies_provider = new CookiesProvider();
-      cookies_provider.saveUserData(response);
-
-      const url = window.location.href;
-      const path = url.split("/")[0];
+      cookies_provider.saveUserData({
+        auth: response.auth,
+        token: response.token,
+        user: {
+          id: response.user.id,
+          email: response.user.email,
+          name: response.user.email,
+        },
+      });
 
       setInterval(() => {
-        window.location.href = `${path}/home`;
+        window.location.href = "/home";
       }, 1000);
 
       toast.success("Usuário logado com sucesso!");

@@ -15,5 +15,4 @@ const serverConnectionConfigProduction = {
   daily_co_api: REACT_APP_DAILY_CO_API,
 };
 
-console.log(serverConnectionConfigProduction);
 export { serverConnectionConfigProduction };

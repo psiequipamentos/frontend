@@ -42,7 +42,6 @@ export default class AddPaciente extends React.Component<
     const paciente_service = new PacienteService();
     const cookies = new CookiesProvider();
     const psicologo_cookie = await cookies.getUserData();
-    console.log(psicologo_cookie);
     const id = psicologo_cookie.user.id;
     const data_to_send = {
       email: this.state.email,
