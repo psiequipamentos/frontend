@@ -128,7 +128,7 @@ export default class EmdrSounds extends React.Component<
 
     const url = window.location.href;
     const user_type = url.split("/").reverse()[1];
-    console.log(user_type)
+    console.log("EmdrSounds handleAudio", user_type)
     if(user_type === 'psicologo'){
       const data_to_send = {
         property: name,
@@ -207,7 +207,7 @@ export default class EmdrSounds extends React.Component<
   setVolume(value: number) {
     const url = window.location.href;
     const user_type = url.split("/").reverse()[1];
-    console.log(user_type)
+    console.log("EmdrSounds setVolume", user_type)
     const audio = document.querySelector('audio');
     if (audio) {
       if(value == 0 && this.state.volume == 0){
@@ -244,8 +244,7 @@ export default class EmdrSounds extends React.Component<
     const audio = document.querySelector('audio');
     const url = window.location.href;
     const user_type = url.split("/").reverse()[1];
-    console.log(user_type)
-    console.log(config)
+    console.log("EmdrSounds muteOptions", user_type, config)
     if (audio) {
       if(user_type === config || config === "ambos"){
         audio.volume = 0
@@ -285,7 +284,7 @@ export default class EmdrSounds extends React.Component<
         })
     const url = window.location.href;
     const user_type = url.split("/").reverse()[1];
-    console.log(user_type)
+    console.log("EmdrSounds componentDidMount", user_type)
       this.createAudio(allSounds[0].value);
     if(user_type ===  'paciente')
       this.props.socket.on("audio-handler", ({property, value}:any) => {

@@ -12,7 +12,6 @@ export default class MailerService extends MasterService {
 
     public sendVerificationEmail = async (data: any) => {
         const response = await this.api_service.RequestData('POST', `${this.endpoint}/send-verification-link`, data, '');
-        console.log(response)
         return response;
     }
 

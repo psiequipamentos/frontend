@@ -16,12 +16,14 @@ export default class Prejoin extends React.Component<any, iStates> {
     this.state = {
       meeting_code: window.location.href.split("/").reverse()[0]
     };
+    console.log("Prejoin constructor", this.state, window.location.href)
     this.callObject = DailyIframe.createCallObject();
     this.handleChange = this.handleChange.bind(this);
   }
   handleChange = (event: any) =>
     this.setState({ [event.target.name]: event.target.value } as any);
   componentDidMount() {
+    console.log("Prejoin componentDidMount")
     navigator.mediaDevices
       .getUserMedia({
         video: true,

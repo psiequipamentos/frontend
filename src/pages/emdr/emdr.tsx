@@ -110,6 +110,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   private serverConfig;
   constructor(props: IEmdrProps) {
     super(props);
+    console.log("Emdr constructor", user_type, code, url, socket, serverConnectionConfigProduction)
     this.serverConfig = serverConnectionConfigProduction;
     this.callObject = DailyIframe.createCallObject();
     this.state = {
@@ -190,6 +191,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   }
 
   toggleFullscreen() {
+    console.log("Emdr toggleFullscreen", user_type, this)
     if (!document.fullscreen) {
       var elem = document.documentElement;
       if (elem.requestFullscreen) {
@@ -203,6 +205,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   }
 
   resizeCanvas() {
+    console.log("Emdr resizeCanvas", user_type, this)
     centerX = (document.documentElement.clientWidth - 5) / 2 - 45;
     centerY = (document.documentElement.clientHeight - 5) / 2;
     if (this.state.directionStatus === "sacadico") {
@@ -215,6 +218,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
     });
   }
   componentDidMount() {
+    console.log("Emdr componentDidMount", user_type, this)
     window.addEventListener("resize", this.resizeCanvas);
     // * PREJOIN
     navigator.mediaDevices
@@ -233,10 +237,12 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
     playInterval = setInterval(() => this.moveBalls(ctx), this.state.intervalo);
 
     //**SOCKET
-    socket.on("ball-handler", (data) =>
+    socket.on("ball-handler", (data) => {
+      console.log("Emdr componentDidMount ball-handler", user_type, data)
       this.setState({ [data.property]: data.value } as any)
-    );
+    });
     socket.on("start-cron", (data: any) => {
+      console.log("Emdr componentDidMount start-cron", user_type, data)
       if (user_type === "paciente") {
         this.setState({ nome_paciente: data.paciente });
         this.setState({ pacient_connected: true });
@@ -247,10 +253,13 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
     socket.on("end-call", () => this.endCall());
   }
 
-  handleChange = (event: any) =>
+  handleChange = (event: any) =>{
+    console.log("Emdr handleChange", user_type, this, event)
     this.setState({ [event.target.name]: event.target.value } as any);
+  }
 
   joinCall(url: any) {
+    console.log("Emdr joinCall", user_type, url, this)
     return new Promise((resolve, reject) =>
       this.callObject
         .join({ url })
@@ -260,16 +269,17 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   }
 
   async entrar() {
+    console.log("Emdr entrar", user_type, this)
     try {
       await this.joinCall(this.state.url);
       socket.emit("user-joined", { codigo: this.state.url });
     } catch (err) {
-      console.log(err);
+      console.log("Emdr entrar error", user_type, err)
     }
   }
 
   setColor(event: any) {
-    console.log(event);
+    console.log("Emdr setColor", user_type, this, event);
     this.setState({ circleColor: event.target.value });
 
     //**SOCKET
@@ -627,6 +637,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   }
 
   play() {
+    console.log("Emdr play", user_type, this, this.isNotMoving());
     if (this.isNotMoving()) {
       this.setState({ visibility: true });
       this.setState({ stop: false }, () => (this.state.direction.x = 0));
@@ -769,6 +780,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   };
   videoCallListeners() {
     this.callObject.on("participant-updated", async (event) => {
+      console.log("Emdr videoCallListeners participant-updated", user_type, event);
       if (event?.participant.video && event.participant.audio) {
         const streams = this.callObject.participants();
         let callItems: any = {};
