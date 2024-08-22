@@ -9,11 +9,20 @@ export default class WebsocketServer {
 
   constructor() {
     this.ws_url = serverConnectionConfigProduction.websocket_url;
-    this.socket = io(this.ws_url);
+    this.socket = io(this.ws_url, {
+      transports: ["websocket"],
+    });
   }
 
   run = (user_type: string, code:string) => {
+    if (["paciente", "psicologo"].includes(user_type)) return
+
+    console.log(`WebsocketServer run user_type '${user_type}' code '${code}'`, this.socket)
     this.socket.on("connect", () => console.log(`[IO] ${user_type}  conectado`));
+    this.socket.on("connect_error", (err:any) => {
+      console.log(`WebsocketServer run connect_error ${err?.message}`, err);
+    });
+
     this.current_user_type = user_type;
     const data_to_send = {
       session_code: code,
@@ -21,6 +30,7 @@ export default class WebsocketServer {
         type: user_type,
       },
     };
+    console.log(`WebsocketServer run user_type '${user_type}' code '${code}'`, data_to_send)
     this.socket.emit("join-session", data_to_send);
   };
 }
