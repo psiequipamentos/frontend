@@ -15,8 +15,6 @@ export default class WebsocketServer {
   }
 
   run = (user_type: string, code:string) => {
-    if (["paciente", "psicologo"].includes(user_type)) return
-
     console.log(`WebsocketServer run user_type '${user_type}' code '${code}'`, this.socket)
     this.socket.on("connect", () => console.log(`[IO] ${user_type}  conectado`));
     this.socket.on("connect_error", (err:any) => {
