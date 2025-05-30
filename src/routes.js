@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter, Switch, Route } from "react-router-dom";
 import { GuardedRoute, GuardProvider } from "react-router-guards";
 import Timer from "./components/timer/timer";
@@ -14,12 +13,16 @@ import RecuperarSenha from "./pages/home/forms/recuperarSenha";
 import TrocarSenha from "./pages/home/forms/trocarsenha";
 import Login from "./pages/loginPsicologo/login";
 import ValidarPsicologo from "./pages/ValidarPsicologo";
+import PacienteSalaRedirect from "./components/paciRedirect";
+import BloqueioMobile from "./components/bloqueioMobile";
+import AcessoNegado from "./pages/acessoNegado";
 
 const PsiMiddleware = new PsicologoMiddleware();
 
 const Routes = () => (
   <BrowserRouter>
     <GuardProvider guards={[PsiMiddleware.autenticar]}>
+      <BloqueioMobile />
       <Switch>
         <Route exact path="/" component={Login} />
         <Route path="/login" component={Login} />
@@ -32,10 +35,15 @@ const Routes = () => (
           component={EmailRecuperarSenha}
         />
         <Route path="/recuperar-senha/nova-senha" component={TrocarSenha} />
+        <Route path="/emdr/paciente/sala/:hash" component={PacienteSalaRedirect}/>
         <Route path="/emdr/paciente/:meeting_code">
           <Emdr ControlsVisibility={false}></Emdr>
         </Route>
+        <Route path="/acesso-negado" component={AcessoNegado} />
         <Route path="/verificar-email/:id" component={ValidarPsicologo} />
+        <Route path="/verificar-email/:id">
+          <Emdr ControlsVisibility={false}></Emdr>
+        </Route>
         <Route path="/cadastro" component={Cadastro} />
         {/* HOME */}
         <GuardedRoute

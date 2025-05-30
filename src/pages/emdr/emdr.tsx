@@ -100,7 +100,7 @@ let centerY = (document.documentElement.clientHeight - 5) / 2;
 // ---------- SOCKET --------------------
 const init_ws = new WebsocketServer();
 const url = window.location.href;
-const user_type = url.split("/").reverse()[1];
+const user_type = url.split("/").reverse()[1] === 'sala' ? 'paciente' : url.split("/").reverse()[1];
 const code: any = url.split("/").reverse()[0];
 init_ws.run(user_type, code);
 const socket = init_ws.socket;
@@ -241,6 +241,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
       console.log("Emdr componentDidMount ball-handler", user_type, data)
       this.setState({ [data.property]: data.value } as any)
     });
+    
     socket.on("start-cron", (data: any) => {
       console.log("Emdr componentDidMount start-cron", user_type, data)
       if (user_type === "paciente") {
@@ -362,18 +363,21 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
   show() {
     this.setState({ visibility: true });
 
-    //**SOCKET
-    const data_to_send = {
-      property: "visibility",
-      value: true,
-    };
-    socket.emit("ball-handler", data_to_send);
+    if (user_type !== "psicologo") {
+      const data_to_send = {
+        property: "visibility",
+        value: true,
+      };
+      socket.emit("ball-handler", data_to_send);
+    }
   }
   hide() {
     this.setState({ visibility: false });
-    //**SOCKET
-    const data_to_send = { property: "visibility", value: false };
-    socket.emit("ball-handler", data_to_send);
+
+    if (user_type !== "psicologo") {
+      const data_to_send = { property: "visibility", value: false };
+      socket.emit("ball-handler", data_to_send);
+    }
   }
 
   setVelocity(variable: any, velocity: any) {
@@ -985,6 +989,7 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
                   <Invite
                     nome={"João"}
                     url_sessao={document.URL.split("psicologo/")[1]}
+                    hash_paciente={localStorage.getItem("hash_paciente")!}
                   ></Invite>
                 </Modal>
               </div>
