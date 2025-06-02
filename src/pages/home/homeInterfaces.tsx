@@ -4,6 +4,7 @@ export interface InviteProps{
   whatsapp?: any;
   telegram?: string;
   url_sessao: string;
+  hash_paciente?: string;
 }
 
 export interface InviteState{
