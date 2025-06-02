@@ -16,6 +16,7 @@ import ValidarPsicologo from "./pages/ValidarPsicologo";
 import PacienteSalaRedirect from "./components/paciRedirect";
 import BloqueioMobile from "./components/bloqueioMobile";
 import AcessoNegado from "./pages/acessoNegado";
+import JitsiTest from "./pages/testes/JitsiTest";
 
 const PsiMiddleware = new PsicologoMiddleware();
 
@@ -92,6 +93,7 @@ const Routes = () => (
         >
           <Emdr ControlsVisibility={true}></Emdr>
         </GuardedRoute>
+        <Route path="/teste-jitsi" component={JitsiTest} />
       </Switch>
     </GuardProvider>
   </BrowserRouter>
