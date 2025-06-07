@@ -5,7 +5,6 @@ import WebsocketServer from "../../ws/server";
 import DragDropModal from "../../components/modals/DragDropModal";
 import Chat from "../../components/chat";
 import buttonCustom from "../../components/buttons/button";
-import DailyIframe, { DailyParticipantsObject } from "@daily-co/daily-js";
 import axios from "axios";
 import "../../styles/VideoSmall.css";
 import { serverConnectionConfigProduction } from "../../config/server-connection.config";
@@ -25,6 +24,9 @@ import InviteButton from "./InviteButton";
 import Timer from "../../components/timer/timer";
 import { powerIcon, speedIcon, userIcon } from "../../components/icons/icons";
 import "./canvas.css";
+
+declare const JitsiMeetExternalAPI: any; // Added for Jitsi Meet External API
+
 interface IEmdrProps {
   ControlsVisibility: boolean;
 }
@@ -57,12 +59,13 @@ interface IEmdrState {
   balanceSound: number;
 
   messages: any;
-  url: any;
   mic_state: boolean;
 
   pacient_connected: boolean;
   all_users_connected: boolean;
   nome_paciente: string;
+  localParticipantId?: string; // Added for Jitsi
+  remoteParticipantId?: string; // Added for Jitsi, to control large video
 }
 
 const buttonStyle =
@@ -106,13 +109,13 @@ init_ws.run(user_type, code);
 const socket = init_ws.socket;
 
 export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
-  private callObject;
-  private serverConfig;
+  private serverConfig: any;
+  private jitsiApi: any;
   constructor(props: IEmdrProps) {
     super(props);
     console.log("Emdr constructor", user_type, code, url, socket, serverConnectionConfigProduction)
     this.serverConfig = serverConnectionConfigProduction;
-    this.callObject = DailyIframe.createCallObject();
+    this.jitsiApi = null; // Added for Jitsi
     this.state = {
       nome_paciente: "",
       all_users_connected: false,
@@ -143,10 +146,10 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
       maxNumberOfMovements: SelectNumber[0].value,
 
       balanceSound: 0,
-      url: `${this.serverConfig.daily_co_api}/${
-        window.location.href.split("/").reverse()[0]
-      }`,
+      // url: `${this.serverConfig.daily_co_api}/${window.location.href.split("/").reverse()[0]}`, // Removed Daily.co specific URL
       mic_state: true,
+      localParticipantId: undefined, // Added for Jitsi
+      remoteParticipantId: undefined, // Added for Jitsi
     };
 
     this.moveBalls = this.moveBalls.bind(this);
@@ -179,11 +182,12 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
     this.isNotMoving = this.isNotMoving.bind(this);
     this.setColor = this.setColor.bind(this);
     this.balanceX = this.balanceX.bind(this);
-    this.callObject = DailyIframe.createCallObject();
-    this.joinCall = this.joinCall.bind(this);
+    // this.callObject = DailyIframe.createCallObject(); // Removed Daily.co
+    // this.joinCall = this.joinCall.bind(this); // Removed Daily.co
+    this.initializeJitsiMeet = this.initializeJitsiMeet.bind(this); // Added for Jitsi
     this.handleChange = this.handleChange.bind(this);
     this.entrar = this.entrar.bind(this);
-    this.videoCallListeners = this.videoCallListeners.bind(this);
+    // this.videoCallListeners = this.videoCallListeners.bind(this); // Removed Daily.co
     this.changeMicState = this.changeMicState.bind(this);
     this.hideBallOnPause = this.hideBallOnPause.bind(this);
     this.toggleFullscreen = this.toggleFullscreen.bind(this);
@@ -231,8 +235,6 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
         video.srcObject = stream;
         this.entrar();
       });
-    this.videoCallListeners();
-    // * PREJOIN
     const ctx = this.state.canvas.current.getContext("2d");
     playInterval = setInterval(() => this.moveBalls(ctx), this.state.intervalo);
 
@@ -254,26 +256,28 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
     socket.on("end-call", () => this.endCall());
   }
 
+  componentWillUnmount() {
+    console.log("Emdr componentWillUnmount", user_type, this)
+    window.removeEventListener("resize", this.resizeCanvas);
+    clearInterval(playInterval);
+    socket.emit("disconnect_user", { room: code, user: user_type });
+    if (this.jitsiApi) {
+      this.jitsiApi.dispose();
+      this.jitsiApi = null;
+      console.log("Jitsi API disposed on unmount");
+    }
+  }
+
   handleChange = (event: any) =>{
     console.log("Emdr handleChange", user_type, this, event)
     this.setState({ [event.target.name]: event.target.value } as any);
   }
 
-  joinCall(url: any) {
-    console.log("Emdr joinCall", user_type, url, this)
-    return new Promise((resolve, reject) =>
-      this.callObject
-        .join({ url })
-        .then((res) => resolve(res))
-        .catch((err) => reject(err))
-    );
-  }
-
   async entrar() {
     console.log("Emdr entrar", user_type, this)
     try {
-      await this.joinCall(this.state.url);
-      socket.emit("user-joined", { codigo: this.state.url });
+      await this.initializeJitsiMeet();
+      socket.emit("user-joined", { codigo: code });
     } catch (err) {
       console.log("Emdr entrar error", user_type, err)
     }
@@ -775,87 +779,148 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
       this.sacadicMovement();
     }
   }
-  changeMicState = () => this.callObject.setLocalAudio(this.state.mic_state);
+  changeMicState() {
+    console.log("Emdr changeMicState", user_type, this.state.mic_state, this.jitsiApi);
+    if (this.jitsiApi) {
+      this.jitsiApi.executeCommand('toggleAudio');
+      // The mic_state will be updated by the 'audioMuteStatusChanged' event listener
+    }
+  }
+
+  initializeJitsiMeet() {
+    const roomName = window.location.href.split("/").reverse()[0];
+    const jitsiDomain = 'meet.emdrremoto.com.br';
+    // Determine display name based on user type. For patient, it might be set later via displayNameChange or if already in state.
+    const initialDisplayName = user_type === 'terapeuta' ? 'Terapeuta' : (this.state.nome_paciente || 'Paciente');
+
+    const parentNode = document.getElementById('jitsi-meet-container');
+    if (!parentNode) {
+      console.error("Jitsi parent node ('jitsi-meet-container') not found.");
+      return;
+    }
+    parentNode.style.width = '100%'; // Ensure the container has dimensions
+    parentNode.style.height = '100%';
+
+    const options = {
+      roomName: roomName,
+      parentNode: parentNode,
+      width: '100%',
+      height: '100%',
+      configOverwrite: {
+        prejoinPageEnabled: false,
+        disableTileView: true, // Ensure stage view for 1-on-1
+        startWithAudioMuted: false, // User can mute themselves
+        startWithVideoMuted: false, // User can disable camera
+        defaultLanguage: 'pt',
+        remoteVideoMenu: {
+          disableKick: true, // Therapists might want this enabled later
+        },
+        // requireDisplayName: true, // Enforces a display name is set
+      },
+      interfaceConfigOverwrite: {
+        TOOLBAR_BUTTONS: [
+          'microphone', 'camera', /*'closedcaptions',*/ 'desktop', 'fullscreen',
+          'fodeviceselection', 'hangup', /*'profile',*/ 'chat', /*'recording',*/
+          /*'livestreaming', 'etherpad', 'sharedvideo',*/ 'settings', 'raisehand',
+          'videoquality', 'filmstrip', /*'invite',*/ 'feedback', 'stats', 'shortcuts',
+          'tileview', 'videobackgroundblur', /*'download', 'help', 'mute-everyone', 'security'*/
+        ], // Customized for a cleaner interface, add/remove as needed
+        SETTINGS_SECTIONS: ['devices', 'language', /*'moderator',*/ 'profile', 'sounds'],
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        APP_NAME: 'EMDR Remoto',
+        NATIVE_APP_NAME: 'EMDR Remoto',
+        PROVIDER_NAME: 'EMDR Remoto',
+        LANG_DETECTION: true,
+        DISABLE_VIDEO_BACKGROUND: false, // Allow virtual backgrounds
+        TOOLBAR_ALWAYS_VISIBLE: true,
+        TILE_VIEW_MAX_COLUMNS: 2, // For 1-on-1 sessions
+      },
+      userInfo: {
+        displayName: initialDisplayName
+      }
+    };
+
+    try {
+      this.jitsiApi = new JitsiMeetExternalAPI(jitsiDomain, options);
+
+      this.jitsiApi.addEventListener('videoConferenceJoined', (event: any) => {
+        console.log('Jitsi: Local user joined', event); // event: { roomName, id, displayName }
+        this.setState({ localParticipantId: event.id }); // Store local participant ID
+        this.jitsiApi.executeCommand('displayName', initialDisplayName); // Ensure display name is set
+        this.setState({ mic_state: !this.jitsiApi.isAudioMuted() });
+        if (user_type === 'terapeuta') {
+          socket.emit("terapeuta_conectado_video", { room: code });
+        }
+      });
+
+      this.jitsiApi.addEventListener('videoConferenceLeft', (event: any) => {
+        console.log('Jitsi: Left conference', event);
+        if (this.jitsiApi) {
+          this.jitsiApi.dispose();
+          this.jitsiApi = null;
+        }
+        // Add any UI updates needed when the conference is left, e.g., navigate or show message
+      });
+
+      this.jitsiApi.addEventListener('participantJoined', (event: any) => {
+        console.log('Jitsi: Participant joined', event); // event: { id, displayName }
+        this.setState({ remoteParticipantId: event.id });
+        this.jitsiApi.executeCommand('setLargeVideoParticipant', event.id);
+        this.setState({ pacient_connected: true });
+        if (user_type === "terapeuta" && event.displayName) {
+          this.setState({ nome_paciente: event.displayName });
+          socket.emit("pacient_name", { room: code, name: event.displayName });
+        }
+        if (this.jitsiApi.getNumberOfParticipants() >= 1) { // 1 remote + local
+          this.setState({ all_users_connected: true });
+        }
+      });
+
+      this.jitsiApi.addEventListener('participantLeft', (event: any) => {
+        console.log('Jitsi: Participant left', event); // event: { id }
+        if (event.id === this.state.remoteParticipantId) {
+          this.setState({ remoteParticipantId: undefined });
+        }
+        if (this.jitsiApi.getNumberOfParticipants() < 2) { // Only local user left or empty
+          this.setState({ pacient_connected: false, all_users_connected: false });
+          if (user_type === "terapeuta") {
+            this.setState({ nome_paciente: "" });
+          }
+        }
+      });
+
+      this.jitsiApi.addEventListener('displayNameChange', (event: any) => { // event: { id, displayname }
+        console.log('Jitsi: Display name changed', event);
+        if (this.state.localParticipantId && event.id !== this.state.localParticipantId && user_type === "terapeuta") {
+          this.setState({ nome_paciente: event.displayname });
+          socket.emit("pacient_name", { room: code, name: event.displayname });
+        }
+      });
+
+      this.jitsiApi.addEventListener('audioMuteStatusChanged', (event: any) => { // event: { muted }
+        console.log('Jitsi: Audio mute status changed', event);
+        // This event is only for the local user in Jitsi
+        this.setState({ mic_state: !event.muted });
+      });
+
+      this.jitsiApi.addEventListener('errorOccurred', (error: any) => {
+        console.error('Jitsi API error:', error); // error: { error, message }
+        // Consider showing a user-friendly error message
+      });
+
+    } catch (error) {
+      console.error("Failed to initialize Jitsi Meet API:", error);
+      // Consider showing a user-friendly error message
+    }
+  }
 
   endCall = () => {
     if (user_type === "psicologo") window.location.href = "/home";
     else if (user_type === "paciente")
       window.location.href = "/chamada-encerrada";
   };
-  videoCallListeners() {
-    this.callObject.on("participant-updated", async (event) => {
-      console.log("Emdr videoCallListeners participant-updated", user_type, event);
-      if (event?.participant.video && event.participant.audio) {
-        const streams = this.callObject.participants();
-        let callItems: any = {};
-        let callAudioItems: any = {};
-        for (const [id, participant] of Object.entries(streams)) {
-          callItems[id] = {
-            videoTrack: participant.tracks.video.track,
-          };
-        }
 
-        for (const [id, participant] of Object.entries(streams)) {
-          callAudioItems[id] = {
-            audioTrack: participant.tracks.audio.track,
-          };
-        }
-
-        if (Object.keys(callItems).length >= 2) {
-          let videoStreams: any = {};
-          let audioStreams: any = {};
-          for (const [id] of Object.entries(callItems) as any) {
-            if (id !== "local" && !videoStreams[id]) {
-              if (!videoStreams[id])
-                videoStreams[id] = document.createElement("video");
-            }
-          }
-          for (const [id] of Object.entries(callAudioItems) as any) {
-            if (id !== "local" && !audioStreams[id]) {
-              if (!audioStreams[id])
-                audioStreams[id] = document.createElement("audio");
-            }
-          }
-
-          for (const [id, videoStreamer] of Object.entries(
-            videoStreams
-          ) as any) {
-            videoStreamer.setAttribute(
-              "class",
-              "fixed top-0 z-0 w-full h-full lg:mx-auto my-auto bg-gray-900"
-            );
-            videoStreamer.setAttribute("autoplay", "true");
-            videoStreamer.setAttribute("id", id);
-            const users_containers: any =
-              document.getElementById("users-container");
-            users_containers.appendChild(videoStreamer);
-            try {
-              const videoStream = new MediaStream();
-              videoStream.addTrack(callItems[id].videoTrack);
-              videoStreamer.srcObject = videoStream;
-            } catch (stream_creation_error) {
-              console.log("Erro creating media");
-              console.log(stream_creation_error);
-            }
-          }
-
-          for (const [id, audioStreamer] of Object.entries(
-            audioStreams
-          ) as any) {
-            audioStreamer.setAttribute("autoplay", "true");
-            audioStreamer.setAttribute("id", id);
-            try {
-              const audioStream = new MediaStream();
-              audioStream.addTrack(callAudioItems[id].audioTrack);
-              audioStreamer.srcObject = audioStream;
-            } catch (audio_stream_error) {
-              console.log("error audio stream");
-            }
-          }
-        }
-      }
-    });
-  }
   render() {
     return (
       <div className="grid items-center text-white">
@@ -1061,6 +1126,8 @@ export default class Emdr extends React.Component<IEmdrProps, IEmdrState> {
             className="fixed top-0 z-0 w-full mx-auto min-h-screen"
             id="users-container"
           ></div>
+
+          <div id="jitsi-meet-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20 }}></div>
 
           <canvas
             ref={this.state.canvas}
