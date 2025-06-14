@@ -17,6 +17,7 @@ import PacienteSalaRedirect from "./components/paciRedirect";
 import BloqueioMobile from "./components/bloqueioMobile";
 import AcessoNegado from "./pages/acessoNegado";
 import JitsiTest from "./pages/testes/JitsiTest";
+import Assinaturas from "./pages/assinaturas";
 
 const PsiMiddleware = new PsicologoMiddleware();
 
@@ -46,6 +47,12 @@ const Routes = () => (
           <Emdr ControlsVisibility={false}></Emdr>
         </Route>
         <Route path="/cadastro" component={Cadastro} />
+        <GuardedRoute
+          path="/assinaturas"
+          meta={{ auth: true, router_type: "psicologo" }}
+        >
+          <Assinaturas></Assinaturas>
+        </GuardedRoute>
         {/* HOME */}
         <GuardedRoute
           path="/home"
